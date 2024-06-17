@@ -19,6 +19,7 @@ use pin_project::pin_project;
 
 use std::ops::{Deref, DerefMut};
 use std::task::{Context, Poll, Waker};
+use std::time::Instant;
 
 /// A safe abstraction of a distributed array, providing read/write access protected by locks.
 ///
@@ -286,9 +287,15 @@ impl<T: Dist + ArrayOps + std::default::Default> LocalLockArray<T> {
         array_size: usize,
         distribution: Distribution,
     ) -> LocalLockArray<T> {
+        let t1 = Instant::now();
         let array = UnsafeArray::new(team.clone(), array_size, distribution);
+        println!("unsafe array creation cost:{}", t1.elapsed().as_secs_f64());
+        let t1 = Instant::now();
         array.block_on_outstanding(DarcMode::LocalLockArray);
+        println!("block on outstanding:{}", t1.elapsed().as_secs_f64());
+        let t1 = Instant::now();
         let lock = LocalRwDarc::new(team, ()).unwrap();
+        println!("create LocalRWDarc:{}", t1.elapsed().as_secs_f64());
 
         LocalLockArray {
             lock: lock,

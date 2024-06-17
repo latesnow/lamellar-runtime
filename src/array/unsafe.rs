@@ -144,6 +144,7 @@ impl<T: Dist + ArrayOps + 'static> UnsafeArray<T> {
         array_size: usize,
         distribution: Distribution,
     ) -> UnsafeArray<T> {
+        let t = Instant::now();
         let team = team.into().team.clone();
         team.tasking_barrier();
         let task_group = LamellarTaskGroup::new(team.clone());
@@ -157,18 +158,26 @@ impl<T: Dist + ArrayOps + 'static> UnsafeArray<T> {
         if remaining_elems > 0 {
             per_pe_size += 1
         }
+        println!("      setup:{}", t.elapsed().as_secs_f64());
         // println!("new unsafe array {:?} {:?} {:?}", elem_per_pe, num_elems_local, per_pe_size);
+        let t = Instant::now();
         let rmr = MemoryRegion::new(
             per_pe_size * std::mem::size_of::<T>(),
             team.lamellae.clone(),
             AllocationType::Global,
         );
+        println!("      memory region:{}", t.elapsed().as_secs_f64());
+        let t = Instant::now();
         unsafe {
+            /* 
             for elem in rmr.as_mut_slice().expect("data should exist on pe") {
                 *elem = 0;
             }
+            */
         }
+        println!("      elem init:{}", t.elapsed().as_secs_f64());
 
+        let t = Instant::now();
         let data = Darc::try_new_with_drop(
             team.clone(),
             UnsafeArrayData {
@@ -184,8 +193,10 @@ impl<T: Dist + ArrayOps + 'static> UnsafeArray<T> {
             None,
         )
         .expect("trying to create array on non team member");
+        println!("      data:{}", t.elapsed().as_secs_f64());
         // println!("new unsafe array darc {:?}", data);
         // data.print();
+        let t = Instant::now();
         let array = UnsafeArray {
             inner: UnsafeArrayInner {
                 data: data,
@@ -200,6 +211,7 @@ impl<T: Dist + ArrayOps + 'static> UnsafeArray<T> {
             },
             phantom: PhantomData,
         };
+        println!("      array:{}", t.elapsed().as_secs_f64());
         // println!("new unsafe");
         // unsafe {println!("size {:?} bytes {:?}",array.inner.size, array.inner.data.mem_region.as_mut_slice().unwrap().len())};
         // println!("elem per pe {:?}", elem_per_pe);
