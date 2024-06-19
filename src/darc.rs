@@ -19,7 +19,8 @@
 //! use lamellar::darc::prelude::*;
 //! use std::sync::atomic::{AtomicUsize, Ordering};
 //! use std::sync::Arc;
-//!
+//! 
+//! 
 //! #[lamellar::AmData(Clone)]
 //! struct DarcAm {
 //!     counter: Darc<AtomicUsize>, //each pe has a local atomicusize
@@ -55,7 +56,7 @@ use std::pin::Pin;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
 use std::sync::Arc;
-// use std::time::Instant;
+use std::time::Instant;
 
 // //use tracing::*;
 
@@ -1092,10 +1093,12 @@ impl<T> Darc<T> {
 
         team_rt.tasking_barrier();
         // println!("creating new darc after barrier");
+        let t = Instant::now();
         let addr = team_rt
             .lamellae
             .alloc(size, alloc, std::mem::align_of::<DarcInner<T>>())
             .expect("out of memory");
+        println!("addr_alloc {}", t.elapsed().as_secs_f64());
         // let temp_team = team_rt.clone();
         // team_rt.print_cnt();
         let team_ptr = unsafe {
@@ -1114,6 +1117,7 @@ impl<T> Darc<T> {
             team_rt.panic.clone(),
         ));
         let barrier_ptr = Box::into_raw(barrier);
+        let t = Instant::now();
         let darc_temp = DarcInner {
             id: DARC_ID.fetch_add(1, Ordering::Relaxed),
             my_pe: my_pe,
@@ -1150,15 +1154,19 @@ impl<T> Darc<T> {
             drop: drop,
             valid: AtomicBool::new(true),
         };
+        println!("darc_tmp {}", t.elapsed().as_secs_f64());
+        let t = Instant::now();
         unsafe {
             std::ptr::copy_nonoverlapping(&darc_temp, addr as *mut DarcInner<T>, 1);
         }
+        println!("darc_tmp_copy {}", t.elapsed().as_secs_f64());
         // println!("Darc Inner Item Addr: {:?}", darc_temp.item);
 
         let d = Darc {
             inner: addr as *mut DarcInner<T>,
             src_pe: my_pe,
         };
+        let t = Instant::now();
         for elem in d.ref_cnts_as_mut_slice() {
             *elem = 0;
         }
@@ -1171,6 +1179,7 @@ impl<T> Darc<T> {
         for elem in d.mode_ref_cnt_as_mut_slice() {
             *elem = 0;
         }
+        println!("darc_init {}", t.elapsed().as_secs_f64());
         // println!(
         //     " [{:?}] created new darc , next_id: {:?}",
         //     std::thread::current().id(),

@@ -8,6 +8,7 @@ use std::fmt;
 use std::ptr::NonNull;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::time::Instant;
 
 use crate::active_messaging::RemotePtr;
 use crate::darc::global_rw_darc::{DistRwLock, GlobalRwDarc};
@@ -342,8 +343,11 @@ impl<T> LocalRwDarc<T> {
     /// let five = LocalRwDarc::new(&world,5).expect("PE in world team");
     /// ```
     pub fn new<U: Into<IntoLamellarTeam>>(team: U, item: T) -> Result<LocalRwDarc<T>, IdError> {
+        let t = Instant::now();
+        let tmp = Arc::new(RwLock::new(item));
+        println!("Arc creation {}", t.elapsed().as_secs_f64());
         Ok(LocalRwDarc {
-            darc: Darc::try_new(team, Arc::new(RwLock::new(item)), DarcMode::LocalRw)?,
+            darc: Darc::try_new(team, tmp, DarcMode::LocalRw)?,
         })
     }
 
